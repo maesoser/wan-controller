@@ -9,6 +9,11 @@ import (
 	"golang.org/x/sys/unix"
 	"sync"
 	"time"
+
+	"git.fd.io/govpp.git/adapter"
+	"git.fd.io/govpp.git/adapter/statsclient"
+	"git.fd.io/govpp.git/api"
+	"git.fd.io/govpp.git/core"
 )
 
 type Filesystem struct {
@@ -49,8 +54,7 @@ func (m *Metric) Update() {
 }
 
 const (
-	socketAddress = "/etc/wan-data/wan-connector.sock"
-	kB            = 1024
+	kB = 1024
 )
 
 func (m *Metric) UpdateSystem() {
@@ -82,24 +86,37 @@ func (m *Metric) UpdateSystem() {
 	}
 }
 
-func (m *Metric) UpdateInterfaces() {
-	ifaces, err := mnet.IOCounters(true)
+func (m *Metric) Init() {
+	client := statsclient.NewStatsClient(*statsSocket)
+
+	c, err := core.ConnectStats(client)
 	if err != nil {
-		log.WithFields(log.Fields{"module": "wan-metrics"}).Error("Error getting system ifaces" + err.Error())
-	} else {
-		for _, iface := range ifaces {
-			var newIface Iface
-			newIface.Name = iface.Name
-			newIface.RxBytes = iface.BytesRecv
-			newIface.TxBytes = iface.BytesSent
-			newIface.RxDropped = iface.Dropin
-			newIface.TxDropped = iface.Dropout
-			newIface.RxPackets = iface.PacketsRecv
-			newIface.TxPackets = iface.PacketsSent
-			newIface.TxErrors = iface.Errout
-			newIface.RxErrors = iface.Errin
-			m.Ifaces = append(m.Ifaces, newIface)
-		}
+		log.Fatalln("Connecting failed:", err)
+	}
+	defer c.Disconnect()
+}
+func (m *Metric) UpdateInterfaces() {
+
+	fmt.Println("Listing interface stats..")
+	stats := new(api.InterfaceStats)
+	if err := c.GetInterfaceStats(stats); err != nil {
+		log.Fatalln("getting interface stats failed:", err)
+	}
+	for _, iface := range stats.Interfaces {
+		fmt.Printf(" - %+v\n", iface)
+
+		var newIface Iface
+		newIface.Name = iface.Name
+		newIface.RxBytes = iface.BytesRecv
+		newIface.TxBytes = iface.BytesSent
+		newIface.RxDropped = iface.Dropin
+		newIface.TxDropped = iface.Dropout
+		newIface.RxPackets = iface.PacketsRecv
+		newIface.TxPackets = iface.PacketsSent
+		newIface.TxErrors = iface.Errout
+		newIface.RxErrors = iface.Errin
+		m.Ifaces = append(m.Ifaces, newIface)
+
 	}
 }
 

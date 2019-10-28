@@ -15,6 +15,7 @@ type Config struct {
 	Name        string           `json:"name"`
 	Description string           `json:"descr"`
 	UUID        string           `json:"uuid"`
+	DNSServers  []string         `json:"dns"`
 	IPv4Tables  []string         `json:"ipv4tables"`
 	IPv6Tables  []string         `json:"ipv6tables"`
 	IPv4Routes  []string         `json:"ipv4routes"`
@@ -22,7 +23,8 @@ type Config struct {
 	Encryption  EncryptConfig    `json:"encryption"`
 	Controllers []string         `json:"controllers"`
 	Services    []ServicesConfig `json:"services"`
-	Interfaces  []IfConfig       `json:"interfaces"`
+	LANPorts    []AccessPort     `json:"lan_ports"`
+	WANPorts    []NetworkPort    `json:"wan_ports"`
 }
 
 func (c *Config) Update(newConfig Config) {
