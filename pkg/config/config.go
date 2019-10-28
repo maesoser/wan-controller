@@ -4,25 +4,83 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/json"
-	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Config struct {
-	Name        string           `json:"name"`
-	Description string           `json:"descr"`
-	UUID        string           `json:"uuid"`
-	IPv4Tables  []string         `json:"ipv4tables"`
-	IPv6Tables  []string         `json:"ipv6tables"`
-	IPv4Routes  []string         `json:"ipv4routes"`
-	IPv6Routes  []string         `json:"ipv6routes"`
-	Encryption  EncryptConfig    `json:"encryption"`
-	Controllers []string         `json:"controllers"`
-	Services    []ServicesConfig `json:"services"`
-	Interfaces  []IfConfig       `json:"interfaces"`
+	Name        string        `json:"name"`
+	Description string        `json:"descr"`
+	UUID        string        `json:"uuid"`
+	DNSs        []string      `json:dns`
+	Networks    []Network     `json:"networks"`
+	Encryption  EncryptConfig `json:"encryption"`
+	Controllers []string      `json:"controllers"`
+}
+
+type Network struct {
+	Name        string   `json:"name"`
+	Description string   `json:"descr"`
+	UUID        string   `json:"uuid"`
+	Address     string   `json:"addr"`
+	Mask        string   `json:"mask"`
+	DHCP        bool     `json:"dhcp_enabled"`
+	Uplinks     []Uplink `json:"uplinks"`
+	Ports       []Port   `json:"ports"`
+}
+
+type Uplink struct {
+	Interface string `json:"name"`
+	Address   string `json:"addr"`
+	Mask      string `json:"mask"`
+	DHCP      bool   `json:"dhcp_enabled"`
+}
+
+type Port struct {
+	Interface string `json:"name"`
+	Address   string `json:"addr"`
+	DHCP      bool   `json:"dhcp_enabled"`
+}
+
+func (c *Config) WriteDNS() error {
+	f, err := os.OpenFile("/etc/resolv.conf", os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	w := bufio.NewWriter(f	
+	_, err = fmt.Fprintf(w,"#Modified by WAN-AGENT\n")
+	if err != nil {
+		return err
+	}
+	for dns, _ := range c.DNSs {
+		_, err := fmt.Fprintf(w,"nameserver %s\n", dns)
+		if err != nil {
+			return err
+		}
+	}
+	w.Flush()
+	return nil
+}
+
+func (c *Config) WriteHostname() bool {
+	f, err := os.OpenFile("/etc/hostname", os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	w := bufio.NewWriter(f	
+	_, err = fmt.Fprintf(w,"%s\n", c.Name)
+	if err != nil {
+		return err
+	}
+	w.Flush()
+	return nil
 }
 
 func (c *Config) Update(newConfig Config) {
@@ -66,7 +124,7 @@ func (c *Config) Backup(filepath string) (int, error) {
 	return c.Save(filepath + ".bck")
 }
 
-func (c *Config) Restore(filepath string) (int, error) {
+func (c *Config) Restore(filepath string) error {
 	return c.Load(filepath + ".bck")
 }
 
