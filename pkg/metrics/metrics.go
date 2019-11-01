@@ -47,7 +47,7 @@ type Metric struct {
 	Disks          []Filesystem  `json:"disks"`
 	Ifaces         []Iface       `json:"ifaces"`
 	mtx            sync.Mutex
-	vppStatsClient *statsclient.StatsClient
+	vppStatsClient *adapter.StatsAPI
 	vppStatsConn *core.StatsConnection
 }
 
