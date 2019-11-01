@@ -12,7 +12,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
+	"git.fd.io/govpp.git/adapter"
 	"git.fd.io/govpp.git/adapter/statsclient"
+	"git.fd.io/govpp.git/api"
+	"git.fd.io/govpp.git/core"
 )
 
 type Filesystem struct {
@@ -45,7 +48,7 @@ type Metric struct {
 	Ifaces         []Iface       `json:"ifaces"`
 	mtx            sync.Mutex
 	vppStatsClient *statsclient.StatsClient
-	vppStatsConn *api.StatsProvider)
+	vppStatsConn *core.StatsConnection
 }
 
 func (m *Metric) Update() {
@@ -60,7 +63,7 @@ const (
 )
 
 func (m *Metric) Init() {
-	m.vppStatsClient = statsclient.NewStatsClient()
+	m.vppStatsClient = statsclient.NewStatsClient("")
 	m.vppStatsConn, err := core.ConnectStats(m.vppStatsClient)
 	if err != nil {
 		log.WithFields(log.Fields{"module": "wan-metrics", "error": err.Error()}).Errorln("Error connecting to VPP Stats Endpoint")
@@ -68,7 +71,7 @@ func (m *Metric) Init() {
 }
 
 func (m *Metric) Disconnect(){
-	c.Disconnect()
+	m.vppStatsClient.Disconnect()
 }
 
 func (m *Metric) UpdateSystem() {
@@ -101,7 +104,7 @@ func (m *Metric) UpdateSystem() {
 }
 
 func (m *Metric) StringSystem() string {
-	out = ""
+	out := ""
 	out += fmt.Sprintf("guan_uptime_sec{uuid=\"%s\"} %f\n", m.UUID, m.Uptime)
 	out += fmt.Sprintf("guan_total_mem_kb{uuid=\"%s\"} %f\n", m.UUID, m.MemTotal)
 	out += fmt.Sprintf("guan_free_mem_kb{uuid=\"%s\"} %f\n", m.UUID, m.MemFree)
@@ -114,8 +117,8 @@ func (m *Metric) StringSystem() string {
 
 func (m *Metric) UpdateInterfaces() {
 	m.Ifaces = nil
-	UpdateUnixInterfaces()
-	UpdateDPDKInterfaces()
+	m.UpdateUnixInterfaces()
+	m.UpdateDPDKInterfaces()
 }
 
 func (m *Metric) UpdateUnixInterfaces() {
@@ -147,12 +150,12 @@ func (m *Metric) UpdateDPDKInterfaces() {
 	for _, iface := range stats.Interfaces {
 		var newIface Iface
 		newIface.Name = fmt.Sprintf("port%d",iface.InterfaceIndex) 
-		newIface.RxBytes = iface.RxBytes
-		newIface.TxBytes = iface.TxBytes
+		newIface.RxBytes = iface.Rx.Bytes
+		newIface.TxBytes = iface.Tx.Bytes
 		newIface.RxDropped = iface.Drops
 		newIface.TxDropped = iface.Drops
-		newIface.RxPackets = iface.RxPackets
-		newIface.TxPackets = iface.TxPackets
+		newIface.RxPackets = iface.Rx.Packets
+		newIface.TxPackets = iface.Tx.Packets
 		newIface.TxErrors = iface.TxErrors
 		newIface.RxErrors = iface.RxErrors
 		m.Ifaces = append(m.Ifaces, newIface)
@@ -160,16 +163,16 @@ func (m *Metric) UpdateDPDKInterfaces() {
 }
 
 func (m *Metric) StringInterfaces() string {
-	out = ""
+	out := ""
 	for _, iface := range m.Ifaces {
-		out += fmt.Sprintf("guan_rx_bytes{uuid=\"%s\",name=\"%s\"\n", m.UUID, iface.Name, iface.BytesRecv)
-		out += fmt.Sprintf("guan_tx_bytes{uuid=\"%s\",name=\"%s\"\n", m.UUID, iface.Name, iface.BytesSent)
-		out += fmt.Sprintf("guan_rx_drop_bytes{uuid=\"%s\",name=\"%s\"\n", m.UUID, iface.Name, iface.Dropin)
-		out += fmt.Sprintf("guan_tx_drop_bytes{uuid=\"%s\",name=\"%s\"\n", m.UUID, iface.Name, iface.Dropout)
-		out += fmt.Sprintf("guan_rx_pkt{uuid=\"%s\",name=\"%s\"\n", m.UUID, iface.Name, iface.PacketsRecv)
-		out += fmt.Sprintf("guan_tx_pkt{uuid=\"%s\",name=\"%s\"\n", m.UUID, iface.Name, iface.PacketsSent)
-		out += fmt.Sprintf("guan_rx_error{uuid=\"%s\",name=\"%s\"\n", m.UUID, iface.Name, iface.Errout)
-		out += fmt.Sprintf("guan_tx_error{uuid=\"%s\",name=\"%s\"\n", m.UUID, iface.Name, iface.Errin)
+		out += fmt.Sprintf("guan_rx_bytes{uuid=\"%s\",name=\"%s\"\n", m.UUID, iface.Name, iface.RxBytes)
+		out += fmt.Sprintf("guan_tx_bytes{uuid=\"%s\",name=\"%s\"\n", m.UUID, iface.Name, iface.TxBytes)
+		out += fmt.Sprintf("guan_rx_drop_bytes{uuid=\"%s\",name=\"%s\"\n", m.UUID, iface.Name, iface.RxDropped)
+		out += fmt.Sprintf("guan_tx_drop_bytes{uuid=\"%s\",name=\"%s\"\n", m.UUID, iface.Name, iface.TxDropped)
+		out += fmt.Sprintf("guan_rx_pkt{uuid=\"%s\",name=\"%s\"\n", m.UUID, iface.Name, iface.RxPackets)
+		out += fmt.Sprintf("guan_tx_pkt{uuid=\"%s\",name=\"%s\"\n", m.UUID, iface.Name, iface.TxPackets)
+		out += fmt.Sprintf("guan_rx_error{uuid=\"%s\",name=\"%s\"\n", m.UUID, iface.Name, iface.RxErrors)
+		out += fmt.Sprintf("guan_tx_error{uuid=\"%s\",name=\"%s\"\n", m.UUID, iface.Name, iface.TxErrors)
 
 	}
 	return out
@@ -198,7 +201,7 @@ func (m *Metric) UpdateFilesystems() {
 }
 
 func (m *Metric) StringFilesystems() string {
-	out = ""
+	out := ""
 	for _, fs := range m.Disks {
 		out += fmt.Sprintf("guan_free_disk_sec{uuid=\"%s\",dev=\"%s\",mount=\"%s\",} %f\n", m.UUID, fs.Device, fs.Mountpoint, fs.Free)
 		out += fmt.Sprintf("guan_size_disk_sec{uuid=\"%s\",dev=\"%s\",mount=\"%s\",} %f\n", m.UUID, fs.Device, fs.Mountpoint, fs.Size)

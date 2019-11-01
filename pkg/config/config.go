@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"bufio"
+	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -53,7 +55,7 @@ func (c *Config) WriteDNS() error {
 	}
 	defer f.Close()
 
-	w := bufio.NewWriter(f	
+	w := bufio.NewWriter(f)	
 	_, err = fmt.Fprintf(w,"#Modified by WAN-AGENT\n")
 	if err != nil {
 		return err
@@ -68,13 +70,13 @@ func (c *Config) WriteDNS() error {
 	return nil
 }
 
-func (c *Config) WriteHostname() bool {
+func (c *Config) WriteHostname() error {
 	f, err := os.OpenFile("/etc/hostname", os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	w := bufio.NewWriter(f	
+	w := bufio.NewWriter(f)	
 	_, err = fmt.Fprintf(w,"%s\n", c.Name)
 	if err != nil {
 		return err

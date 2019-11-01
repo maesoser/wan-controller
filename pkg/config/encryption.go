@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"os"
+	"encoding/json"
 )
 
 type EncryptConfig struct {
@@ -24,7 +25,7 @@ func (c *EncryptConfig) SaveToFile(filepath string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	n, err := file.Write(c.Certificate.Bytes())
+	n, err := file.Write([]byte(c.Certificate))
 	if err != nil {
 		return 0, err
 	}
