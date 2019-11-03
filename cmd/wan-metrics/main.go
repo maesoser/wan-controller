@@ -7,8 +7,10 @@ import (
 	"github.com/maesoser/wan-controller/pkg/config"
 	"github.com/maesoser/wan-controller/pkg/metrics"
 	log "github.com/sirupsen/logrus"
+	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -36,14 +38,13 @@ func Send(data []byte, address, uuid string) error {
 
 func main() {
 
-	var c config.Config
-	var monitor metrics.Metric
 	log.SetFormatter(&log.TextFormatter{
-		DisableColors: true,
+		DisableColors: false,
 		FullTimestamp: true,
 	})
 
-	log.WithFields(log.Fields{"module": "wan-metrics"}).Info("Starting wan-metrics")
+	var c config.Config
+	var monitor metrics.Metric
 
 	Interval := flag.String("interval", "5m", "Update Interval")
 	Verbose := flag.Bool("verbose", false, "Verbose output")
@@ -56,7 +57,9 @@ func main() {
 		log.WithFields(log.Fields{"module": "wan-metrics", "error": err.Error()}).Fatalln("Error parsing interval")
 	}
 
-	err = ioutil.WriteFile(PidPath, []byte(fmt.Sprintf("%d", os.Getpid())), 0664)
+	log.WithFields(log.Fields{"module": "wan-metrics"}).Info("Starting wan-metrics")
+
+	err = ioutil.WriteFile(*PidPath, []byte(fmt.Sprintf("%d", os.Getpid())), 0664)
 	if err != nil {
 		log.WithFields(log.Fields{"module": "wan-metrics", "error": err.Error()}).Fatalln("Error writting PID file")
 	}
@@ -66,7 +69,7 @@ func main() {
 		log.WithFields(log.Fields{"module": "wan-metrics", "error": err.Error()}).Fatalln("Error reading config")
 	}
 	target := c.GetController()
-
+	monitor.Init()
 	for {
 		monitor.Update()
 		if *Verbose {

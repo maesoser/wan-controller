@@ -12,7 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
-	"git.fd.io/govpp.git/adapter"
+	// "git.fd.io/govpp.git/adapter"
 	"git.fd.io/govpp.git/adapter/statsclient"
 	"git.fd.io/govpp.git/api"
 	"git.fd.io/govpp.git/core"
@@ -38,17 +38,17 @@ type Iface struct {
 }
 
 type Metric struct {
-	UUID           string        `json:"uuid"`
-	Load           []float64     `json:"load"`
-	Uptime         time.Duration `json:"upt"`
-	MemTotal       uint64        `json:"memtotal"`
-	MemFree        uint64        `json:"memfree"`
-	MemBuff        uint64        `json:"membuff"`
-	Disks          []Filesystem  `json:"disks"`
-	Ifaces         []Iface       `json:"ifaces"`
-	mtx            sync.Mutex
-	vppStatsClient *adapter.StatsAPI
-	vppStatsConn *core.StatsConnection
+	UUID          string        `json:"uuid"`
+	Load          []float64     `json:"load"`
+	Uptime        time.Duration `json:"upt"`
+	MemTotal      uint64        `json:"memtotal"`
+	MemFree       uint64        `json:"memfree"`
+	MemBuff       uint64        `json:"membuff"`
+	Disks         []Filesystem  `json:"disks"`
+	Ifaces        []Iface       `json:"ifaces"`
+	mtx           sync.Mutex
+	vppClient     *statsclient.StatsClient
+	vppConnection *core.StatsConnection
 }
 
 func (m *Metric) Update() {
@@ -63,15 +63,16 @@ const (
 )
 
 func (m *Metric) Init() {
-	m.vppStatsClient = statsclient.NewStatsClient("")
-	m.vppStatsConn, err := core.ConnectStats(m.vppStatsClient)
+	var err error
+	m.vppClient = statsclient.NewStatsClient(statsclient.DefaultSocketName)
+	m.vppConnection, err = core.ConnectStats(m.vppClient)
 	if err != nil {
 		log.WithFields(log.Fields{"module": "wan-metrics", "error": err.Error()}).Errorln("Error connecting to VPP Stats Endpoint")
 	}
 }
 
-func (m *Metric) Disconnect(){
-	m.vppStatsClient.Disconnect()
+func (m *Metric) Disconnect() {
+	m.vppClient.Disconnect()
 }
 
 func (m *Metric) UpdateSystem() {
@@ -144,12 +145,13 @@ func (m *Metric) UpdateUnixInterfaces() {
 
 func (m *Metric) UpdateDPDKInterfaces() {
 	stats := new(api.InterfaceStats)
-	if err := m.vppStatsConn.GetInterfaceStats(stats); err != nil {
+	if err := m.vppConnection.GetInterfaceStats(stats); err != nil {
 		log.WithFields(log.Fields{"module": "wan-metrics", "error": err.Error()}).Errorln("Error getting DPDK interface stats")
 	}
 	for _, iface := range stats.Interfaces {
 		var newIface Iface
-		newIface.Name = fmt.Sprintf("port%d",iface.InterfaceIndex) 
+		// newIface.Name = fmt.Sprintf("port%d", iface.InterfaceIndex)
+		newIface.Name = iface.InterfaceName
 		newIface.RxBytes = iface.Rx.Bytes
 		newIface.TxBytes = iface.Tx.Bytes
 		newIface.RxDropped = iface.Drops

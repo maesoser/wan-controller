@@ -1,14 +1,14 @@
 package config
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/md5"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
-	"bufio"
-	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -16,10 +16,10 @@ import (
 
 type Config struct {
 	Name        string        `json:"name"`
-	Description string        `json:"descr"`
+	Description string        `json:"description"`
 	UUID        string        `json:"uuid"`
-	DNSs        []string      `json:dns`
-	Networks    []Network     `json:"networks"`
+	DNSs        []string      `json:"dns"`
+	Network     Network       `json:"network"`
 	Encryption  EncryptConfig `json:"encryption"`
 	Controllers []string      `json:"controllers"`
 }
@@ -30,22 +30,15 @@ type Network struct {
 	UUID        string   `json:"uuid"`
 	Address     string   `json:"addr"`
 	Mask        string   `json:"mask"`
-	DHCP        bool     `json:"dhcp_enabled"`
-	Uplinks     []Uplink `json:"uplinks"`
-	Ports       []Port   `json:"ports"`
+	Gateway     string   `json:"gateway"`
+	Uplink      Uplink   `json:"uplink"`
+	Ports       []string `json:"ports"`
 }
 
 type Uplink struct {
-	Interface string `json:"name"`
-	Address   string `json:"addr"`
-	Mask      string `json:"mask"`
-	DHCP      bool   `json:"dhcp_enabled"`
-}
-
-type Port struct {
-	Interface string `json:"name"`
-	Address   string `json:"addr"`
-	DHCP      bool   `json:"dhcp_enabled"`
+	Name    string `json:"name"`
+	Address string `json:"addr"`
+	DHCP    bool   `json:"dhcp_enabled"`
 }
 
 func (c *Config) WriteDNS() error {
@@ -55,13 +48,13 @@ func (c *Config) WriteDNS() error {
 	}
 	defer f.Close()
 
-	w := bufio.NewWriter(f)	
-	_, err = fmt.Fprintf(w,"#Modified by WAN-AGENT\n")
+	w := bufio.NewWriter(f)
+	_, err = fmt.Fprintf(w, "#Modified by WAN-AGENT\n")
 	if err != nil {
 		return err
 	}
 	for dns, _ := range c.DNSs {
-		_, err := fmt.Fprintf(w,"nameserver %s\n", dns)
+		_, err := fmt.Fprintf(w, "nameserver %s\n", dns)
 		if err != nil {
 			return err
 		}
@@ -76,8 +69,8 @@ func (c *Config) WriteHostname() error {
 		return err
 	}
 	defer f.Close()
-	w := bufio.NewWriter(f)	
-	_, err = fmt.Fprintf(w,"%s\n", c.Name)
+	w := bufio.NewWriter(f)
+	_, err = fmt.Fprintf(w, "%s\n", c.Name)
 	if err != nil {
 		return err
 	}
@@ -139,6 +132,9 @@ func (c *Config) Checksum() [16]byte {
 }
 
 func (c *Config) GetController() string {
+	if len(c.Controllers) == 1 {
+		return c.Controllers[0]
+	}
 	rand.Seed(time.Now().UnixNano())
 	num := rand.Intn(len(c.Controllers) - 1)
 	return c.Controllers[num]
