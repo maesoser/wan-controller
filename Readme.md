@@ -153,3 +153,5 @@ add default linux route via 192.168.2.1
 [How to develop Go gRPC microservice](https://medium.com/@amsokol.com/tutorial-how-to-develop-go-grpc-microservice-with-http-rest-endpoint-middleware-kubernetes-daebb36a97e9)
 
 [GoVPP](https://github.com/FDio/govpp)
+
+[Advancec Command Execution in go](https://blog.kowalczyk.info/article/wOYk/advanced-command-execution-in-go-with-osexec.html)

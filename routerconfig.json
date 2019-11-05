@@ -1,0 +1,19 @@
+
+{
+  "name" : "vppRouter",
+  "description" : "Ny Home Router",
+  "uuid" : "129.23.23.43",
+  "dns" : ["8.8.8.8"],
+  "network" : {
+    "name" : "HomeNetwork",
+    "description" : "My Home Network",
+    "uuid" : "0000-0000-0000-0000",
+    "addr" : "192.168.2.0",
+    "mask" : "255.255.255.0",
+    "gateway" : "192.168.2.1",
+    "uplink" : { "name" : "port1", "address" : "0.0.0.0",  "dhcp_enabled" : true },
+    "ports" : ["port2, port3", "port4", "port5"]
+  },
+  "encryption" : {},
+  "controllers" : ["192.168.0.76:6633"]
+}

@@ -1,17 +1,83 @@
 package config
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/md5"
 	"encoding/json"
-	log "github.com/sirupsen/logrus"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Config struct {
+<<<<<<< HEAD
+	Name        string        `json:"name"`
+	Description string        `json:"description"`
+	UUID        string        `json:"uuid"`
+	DNSs        []string      `json:"dns"`
+	Network     Network       `json:"network"`
+	Encryption  EncryptConfig `json:"encryption"`
+	Controllers []string      `json:"controllers"`
+}
+
+type Network struct {
+	Name        string   `json:"name"`
+	Description string   `json:"descr"`
+	UUID        string   `json:"uuid"`
+	Address     string   `json:"addr"`
+	Mask        string   `json:"mask"`
+	Gateway     string   `json:"gateway"`
+	Uplink      Uplink   `json:"uplink"`
+	Ports       []string `json:"ports"`
+}
+
+type Uplink struct {
+	Name    string `json:"name"`
+	Address string `json:"addr"`
+	DHCP    bool   `json:"dhcp_enabled"`
+}
+
+func (c *Config) WriteDNS() error {
+	f, err := os.OpenFile("/etc/resolv.conf", os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	w := bufio.NewWriter(f)
+	_, err = fmt.Fprintf(w, "#Modified by WAN-AGENT\n")
+	if err != nil {
+		return err
+	}
+	for dns, _ := range c.DNSs {
+		_, err := fmt.Fprintf(w, "nameserver %s\n", dns)
+		if err != nil {
+			return err
+		}
+	}
+	w.Flush()
+	return nil
+}
+
+func (c *Config) WriteHostname() error {
+	f, err := os.OpenFile("/etc/hostname", os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	w := bufio.NewWriter(f)
+	_, err = fmt.Fprintf(w, "%s\n", c.Name)
+	if err != nil {
+		return err
+	}
+	w.Flush()
+	return nil
+=======
 	Name        string           `json:"name"`
 	Description string           `json:"descr"`
 	UUID        string           `json:"uuid"`
@@ -25,6 +91,7 @@ type Config struct {
 	Services    []ServicesConfig `json:"services"`
 	LANPorts    []AccessPort     `json:"lan_ports"`
 	WANPorts    []NetworkPort    `json:"wan_ports"`
+>>>>>>> master
 }
 
 func (c *Config) Update(newConfig Config) {
@@ -68,7 +135,7 @@ func (c *Config) Backup(filepath string) (int, error) {
 	return c.Save(filepath + ".bck")
 }
 
-func (c *Config) Restore(filepath string) (int, error) {
+func (c *Config) Restore(filepath string) error {
 	return c.Load(filepath + ".bck")
 }
 
@@ -81,6 +148,9 @@ func (c *Config) Checksum() [16]byte {
 }
 
 func (c *Config) GetController() string {
+	if len(c.Controllers) == 1 {
+		return c.Controllers[0]
+	}
 	rand.Seed(time.Now().UnixNano())
 	num := rand.Intn(len(c.Controllers) - 1)
 	return c.Controllers[num]
