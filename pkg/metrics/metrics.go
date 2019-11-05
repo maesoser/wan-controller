@@ -11,8 +11,15 @@ import (
 	mnet "github.com/shirou/gopsutil/net"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
+<<<<<<< HEAD
 
 	// "git.fd.io/govpp.git/adapter"
+=======
+	"sync"
+	"time"
+
+	"git.fd.io/govpp.git/adapter"
+>>>>>>> master
 	"git.fd.io/govpp.git/adapter/statsclient"
 	"git.fd.io/govpp.git/api"
 	"git.fd.io/govpp.git/core"
@@ -58,8 +65,7 @@ func (m *Metric) Update() {
 }
 
 const (
-	socketAddress = "/etc/wan-data/wan-connector.sock"
-	kB            = 1024
+	kB = 1024
 )
 
 func (m *Metric) Init() {
@@ -104,6 +110,7 @@ func (m *Metric) UpdateSystem() {
 	}
 }
 
+<<<<<<< HEAD
 func (m *Metric) StringSystem() string {
 	out := ""
 	out += fmt.Sprintf("guan_uptime_sec{uuid=\"%s\"} %f\n", m.UUID, m.Uptime)
@@ -124,22 +131,39 @@ func (m *Metric) UpdateInterfaces() {
 
 func (m *Metric) UpdateUnixInterfaces() {
 	ifaces, err := mnet.IOCounters(true)
+=======
+func (m *Metric) Init() {
+	client := statsclient.NewStatsClient(*statsSocket)
+
+	c, err := core.ConnectStats(client)
+>>>>>>> master
 	if err != nil {
-		log.WithFields(log.Fields{"module": "wan-metrics"}).Error("Error getting system ifaces" + err.Error())
-	} else {
-		for _, iface := range ifaces {
-			var newIface Iface
-			newIface.Name = iface.Name
-			newIface.RxBytes = iface.BytesRecv
-			newIface.TxBytes = iface.BytesSent
-			newIface.RxDropped = iface.Dropin
-			newIface.TxDropped = iface.Dropout
-			newIface.RxPackets = iface.PacketsRecv
-			newIface.TxPackets = iface.PacketsSent
-			newIface.TxErrors = iface.Errout
-			newIface.RxErrors = iface.Errin
-			m.Ifaces = append(m.Ifaces, newIface)
-		}
+		log.Fatalln("Connecting failed:", err)
+	}
+	defer c.Disconnect()
+}
+func (m *Metric) UpdateInterfaces() {
+
+	fmt.Println("Listing interface stats..")
+	stats := new(api.InterfaceStats)
+	if err := c.GetInterfaceStats(stats); err != nil {
+		log.Fatalln("getting interface stats failed:", err)
+	}
+	for _, iface := range stats.Interfaces {
+		fmt.Printf(" - %+v\n", iface)
+
+		var newIface Iface
+		newIface.Name = iface.Name
+		newIface.RxBytes = iface.BytesRecv
+		newIface.TxBytes = iface.BytesSent
+		newIface.RxDropped = iface.Dropin
+		newIface.TxDropped = iface.Dropout
+		newIface.RxPackets = iface.PacketsRecv
+		newIface.TxPackets = iface.PacketsSent
+		newIface.TxErrors = iface.Errout
+		newIface.RxErrors = iface.Errin
+		m.Ifaces = append(m.Ifaces, newIface)
+
 	}
 }
 
