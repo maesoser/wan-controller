@@ -15,7 +15,6 @@ import (
 )
 
 type Config struct {
-<<<<<<< HEAD
 	Name        string        `json:"name"`
 	Description string        `json:"description"`
 	UUID        string        `json:"uuid"`
@@ -77,21 +76,6 @@ func (c *Config) WriteHostname() error {
 	}
 	w.Flush()
 	return nil
-=======
-	Name        string           `json:"name"`
-	Description string           `json:"descr"`
-	UUID        string           `json:"uuid"`
-	DNSServers  []string         `json:"dns"`
-	IPv4Tables  []string         `json:"ipv4tables"`
-	IPv6Tables  []string         `json:"ipv6tables"`
-	IPv4Routes  []string         `json:"ipv4routes"`
-	IPv6Routes  []string         `json:"ipv6routes"`
-	Encryption  EncryptConfig    `json:"encryption"`
-	Controllers []string         `json:"controllers"`
-	Services    []ServicesConfig `json:"services"`
-	LANPorts    []AccessPort     `json:"lan_ports"`
-	WANPorts    []NetworkPort    `json:"wan_ports"`
->>>>>>> master
 }
 
 func (c *Config) Update(newConfig Config) {

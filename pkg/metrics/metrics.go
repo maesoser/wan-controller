@@ -11,15 +11,8 @@ import (
 	mnet "github.com/shirou/gopsutil/net"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
-<<<<<<< HEAD
 
 	// "git.fd.io/govpp.git/adapter"
-=======
-	"sync"
-	"time"
-
-	"git.fd.io/govpp.git/adapter"
->>>>>>> master
 	"git.fd.io/govpp.git/adapter/statsclient"
 	"git.fd.io/govpp.git/api"
 	"git.fd.io/govpp.git/core"
@@ -110,7 +103,6 @@ func (m *Metric) UpdateSystem() {
 	}
 }
 
-<<<<<<< HEAD
 func (m *Metric) StringSystem() string {
 	out := ""
 	out += fmt.Sprintf("guan_uptime_sec{uuid=\"%s\"} %f\n", m.UUID, m.Uptime)
@@ -131,12 +123,6 @@ func (m *Metric) UpdateInterfaces() {
 
 func (m *Metric) UpdateUnixInterfaces() {
 	ifaces, err := mnet.IOCounters(true)
-=======
-func (m *Metric) Init() {
-	client := statsclient.NewStatsClient(*statsSocket)
-
-	c, err := core.ConnectStats(client)
->>>>>>> master
 	if err != nil {
 		log.Fatalln("Connecting failed:", err)
 	}
