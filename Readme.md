@@ -157,11 +157,14 @@ Controller software is designed to be installed on a docker/kubernetes cluster. 
 
 ## TODO
 
-- [ ] Include custom NAT rules
+- [ ] Include custom NAT rules.
 - [ ] Include [IPSEC](https://wiki.fd.io/view/VPP/IPSec_and_IKEv2)/[wireguard](https://www.wireguard.com) support for encrypted L3 traffic.
 - [ ] Include pihole monitorization / configuration from the controller
-- [ ] Include support for [PPPoE](https://docs.fd.io/vpp/17.10/clicmd_src_plugins_pppoe.html) uplinks
-- [ ] Include support for multiple networks and uplinks on the same hardware device.
+- [ ] Include support for [PPPoE](https://docs.fd.io/vpp/17.10/clicmd_src_plugins_pppoe.html) uplink.
+- [ ] Include support for multiple networks.
+- [ ] Include support for dual uplink configuration.
+- [ ] Add [IPFIX](https://wiki.fd.io/view/VPP/IPFIX) flow stats collection
+- [ ] Add the possibility to remotely start, stop and configure containers
 
 ## How to install it
 
