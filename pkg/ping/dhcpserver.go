@@ -1,0 +1,5 @@
+package ping
+
+func ping() {
+
+}

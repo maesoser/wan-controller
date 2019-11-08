@@ -1,45 +1,24 @@
 # GÜAN
 
-wan-controller is me trying to create a remote network controller from scratch for linux based devices. It is intended ti allow you to:
+A [high performance](https://wiki.fd.io/view/VPP) remotely manageable and monitorizable home router.
 
-- Apply ACL rules
-- Apply port-forwarding
-- Manage BGP
-- Create VXLAN tunnels
-- Configure existing Interfaces
-- Get information about CPU/Memory/Interface usage
+## Router Design
 
-## API Definition
+Router software has the following custom services enabled:
+  - **wan-agent :** This service manages the connnection with the controllers and the configuration updates.
+  - **an-metrics**
+  - **wan-dhcp:** This service offers DHCP on LAN side
 
-```
-[GET/PUT] Configuration
-[GET/PUT] Configuration/Encryption
-[GET/PUT] Configuration/Controllers
-[GET/PUT] Configuration/Interfaces
-[GET/PUT] Configuration/Routes
-[GET/PUT] Configuration/Iptables
-[GET/PUT] Configuration/NTPServers
-[GET/PUT] Configuration/Services
-```
+Besides that, some other software is in use on the router:
+   - [**pihole:**](https://pi-hole.net) In order to offer add-free local DNS server
 
-## Activation Process
+### Activation Process
 
-Router looks for `routerconfig.json` configuration file. If it is not present, it looks for `activation-config.json` each 10 seconds.
+`wan-agent` looks for `routerconfig.json` configuration file every 10 seconds. If a pendrive on FAT32 with this file is inserted, it is copied to the internal location where `wan-agent` expects to locate such file.
 
-Once it is found, It applies configuration, stores it as `routerconfig.json` and sends hello message to the controllers. They answer with new encryption keys. Router applies them and restart.
+Once it is found, It applies configuration, and sends hello message to the controllers. They answer with new encryption keys. `wan-agent` applies them and restart itself.
 
-## Configuration upgrade process and rollback.
-
-Every hour router asks for the configuration to the controllers.
-Controllers can also push new configuration to the routers at will.
-
-When this happens, Router saves old configuration, applies new one and during 5 minutes it monitors connection to the controllers. If connection is lost, it performs a rollback.
-
-## Monitorization
-
-Every 5 min, router sends metrics to the controllers with memory, CPU, interface counters and disk metrics.
-
-## VPP Configuration file:
+### VPP Configuration file:
 
 ```
 unix {
@@ -104,8 +83,9 @@ plugins {
   plugin dns_plugin.so { enable }
   plugin nat_plugin.so { enable }
 }
-
 ```
+
+### VPP Configuration steps for a common router on top of telco router:
 
 ```
 comment { configure wan port }
@@ -148,10 +128,49 @@ nat44 add static mapping local 192.168.2.2 22 external port1 22 tcp
 
 add default linux route via 192.168.2.1
 ```
-## References
+
+## Configuration upgrade process and rollback.
+
+Every hour `wan-agent` asks for the configuration to the `wan-controller`. Controllers can also push new configuration to the routers at will.
+
+When this happens, `wan-agent` executes the following steps:
+  1. Save old configuration as backup.
+  2. Applies new configuration.
+  3. Waits 10 seconds for the configuration to be applied.
+  4. During 50 seconds it monitors connection to the controllers as well as to other "health endpoints".
+  5. If connection is lost, it performs a rollback. If it is not, it deletes backup configuration and accepts new one as the good one.
+
+## Controller Design
+
+Controller software is designed to be installed on a docker/kubernetes cluster. Controller pieces are basically three:
+  - **wan-controller:** This controller offers an API in order to configure and get information about the connected routers. It also offers a prometheus endpoint to extract information about the routers.
+  - **prometheus:** : It is used to store health information about routers connected to the controller
+  - **grafana:** : It is used to graphically show information about the routers.
+
+### API Definition
+
+```
+[GET/PUT] router
+[GET/PUT] router/{ID}
+[GET/PUT] router/{ID}/encryption
+[GET/PUT] router/{ID}/controllers
+[GET/PUT] router/{ID}/networks
+```
+
+## TODO
+
+[ ] Include custom NAT rules
+[ ] Include wireguard VPN support
+[ ] Include support for router2router wireguard tunnels for encrypted L3 traffic
+[ ] Include pihole monitorization / configuration from the controller
+[ ] Include support for [PPPoE](https://docs.fd.io/vpp/17.10/clicmd_src_plugins_pppoe.html) uplinks
+[ ] Include support for multiple networks and uplinks on the same hardware device
+
+
+# References
 
 [How to develop Go gRPC microservice](https://medium.com/@amsokol.com/tutorial-how-to-develop-go-grpc-microservice-with-http-rest-endpoint-middleware-kubernetes-daebb36a97e9)
 
 [GoVPP](https://github.com/FDio/govpp)
 
-[Advancec Command Execution in go](https://blog.kowalczyk.info/article/wOYk/advanced-command-execution-in-go-with-osexec.html)
+[Advance Command Execution in go](https://blog.kowalczyk.info/article/wOYk/advanced-command-execution-in-go-with-osexec.html)
