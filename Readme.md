@@ -6,7 +6,7 @@ A [high performance](https://wiki.fd.io/view/VPP) remotely manageable and monito
 
 Router software has the following custom services enabled:
   - **wan-agent :** This service manages the connnection with the controllers and the configuration updates.
-  - **an-metrics**
+  - **wan-metrics**
   - **wan-dhcp:** This service offers DHCP on LAN side
 
 Besides that, some other software is in use on the router:
@@ -159,12 +159,12 @@ Controller software is designed to be installed on a docker/kubernetes cluster. 
 
 ## TODO
 
-[ ] Include custom NAT rules
-[ ] Include wireguard VPN support
-[ ] Include support for router2router wireguard tunnels for encrypted L3 traffic
-[ ] Include pihole monitorization / configuration from the controller
-[ ] Include support for [PPPoE](https://docs.fd.io/vpp/17.10/clicmd_src_plugins_pppoe.html) uplinks
-[ ] Include support for multiple networks and uplinks on the same hardware device
+- [ ] Include custom NAT rules
+- [ ] Include wireguard VPN support
+- [ ] Include support for router2router wireguard tunnels for encrypted L3 traffic
+- [ ] Include pihole monitorization / configuration from the controller
+- [ ] Include support for [PPPoE](https://docs.fd.io/vpp/17.10/clicmd_src_plugins_pppoe.html) uplinks
+- [ ] Include support for multiple networks and uplinks on the same hardware device
 
 
 # References
