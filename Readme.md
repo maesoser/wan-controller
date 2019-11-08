@@ -5,18 +5,18 @@ A [high performance](https://wiki.fd.io/view/VPP) remotely manageable and monito
 ## Router Design
 
 Router software has the following custom services enabled:
-  - **wan-agent :** This service manages the connnection with the controllers and the configuration updates.
-  - **wan-metrics**
-  - **wan-dhcp:** This service offers DHCP on LAN side
+  - **wan-agent:** Manages the connnection with the controllers and configuration updates.
+  - **wan-metrics:** Sends iface/cpu/memory stats to the controllers.
+  - **wan-dhcp:** DHCP server for LAN-side hosts.
 
 Besides that, some other software is in use on the router:
    - [**pihole:**](https://pi-hole.net) In order to offer add-free local DNS server
 
 ### Activation Process
 
-`wan-agent` looks for `routerconfig.json` configuration file every 10 seconds. If a pendrive on FAT32 with this file is inserted, it is copied to the internal location where `wan-agent` expects to locate such file.
+`wan-agent` looks for `routerconfig.json` configuration file every 10 seconds. If a pendrive with this file is inserted, it is copied to the internal location where `wan-agent` expects to locate such file.
 
-Once it is found, It applies configuration, and sends hello message to the controllers. They answer with new encryption keys. `wan-agent` applies them and restart itself.
+Once it is found, it applies that configuration, and sends hello message to the controllers. They answer with new encryption keys. `wan-agent` applies them and restart itself.
 
 ### VPP Configuration file:
 
@@ -71,9 +71,7 @@ dpdk {
   dev 0000:06:00.0 {
         name port6
   }
-  # poll-sleep 10
 }
-
 
 plugins {
   plugin default { disable }
@@ -160,11 +158,10 @@ Controller software is designed to be installed on a docker/kubernetes cluster. 
 ## TODO
 
 - [ ] Include custom NAT rules
-- [ ] Include wireguard VPN support
-- [ ] Include support for router2router wireguard tunnels for encrypted L3 traffic
+- [ ] Include [IPSEC](https://wiki.fd.io/view/VPP/IPSec_and_IKEv2)/[wireguard](https://www.wireguard.com) support for encrypted L3 traffic.
 - [ ] Include pihole monitorization / configuration from the controller
 - [ ] Include support for [PPPoE](https://docs.fd.io/vpp/17.10/clicmd_src_plugins_pppoe.html) uplinks
-- [ ] Include support for multiple networks and uplinks on the same hardware device
+- [ ] Include support for multiple networks and uplinks on the same hardware device.
 
 ## How to install it
 
