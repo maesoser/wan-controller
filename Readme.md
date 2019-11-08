@@ -1,6 +1,6 @@
 # GÜAN
 
-A [high performance](https://wiki.fd.io/view/VPP) remotely manageable and monitorizable home router.
+A [high performance](https://wiki.fd.io/view/VPP) remotely manageable and monitorizable home router based on [commodity hardware](https://www.amazon.es/Partaker-Firewall-Appliance-Mikrotik-Industrial/dp/B073FBDJYF/).
 
 ## Router Design
 
@@ -166,7 +166,11 @@ Controller software is designed to be installed on a docker/kubernetes cluster. 
 - [ ] Include support for [PPPoE](https://docs.fd.io/vpp/17.10/clicmd_src_plugins_pppoe.html) uplinks
 - [ ] Include support for multiple networks and uplinks on the same hardware device
 
+## How to install it
 
+ 1. Install CentOS
+ 2. Install VPP
+ 
 # References
 
 [How to develop Go gRPC microservice](https://medium.com/@amsokol.com/tutorial-how-to-develop-go-grpc-microservice-with-http-rest-endpoint-middleware-kubernetes-daebb36a97e9)
