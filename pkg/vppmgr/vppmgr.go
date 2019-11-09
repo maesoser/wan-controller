@@ -9,8 +9,11 @@ import (
 	"github.com/maesoser/wan-controller/binapi/dhcp"
 	"github.com/maesoser/wan-controller/binapi/interfaces"
 	"github.com/maesoser/wan-controller/binapi/l2"
+	"github.com/maesoser/wan-controller/binapi/nat"
+	"github.com/maesoser/wan-controller/binapi/tapv2"
 	"github.com/maesoser/wan-controller/binapi/vpe"
 	log "github.com/sirupsen/logrus"
+	"net"
 	"strconv"
 	"strings"
 )
@@ -113,8 +116,79 @@ func (v *VPPManager) AddBridge() {
 		log.WithFields(log.Fields{"module": "vpp-mgr"}).Error(err)
 		return
 	}
-
 }
+
+func (v *VPPManager) AddNAT(index nat.InterfaceIndex) error {
+	req := &nat.Nat44AddDelInterfaceAddr{
+		IsAdd:     true,
+		SwIfIndex: index,
+	}
+	reply := &nat.Nat44AddDelInterfaceAddrReply{}
+
+	if err := v.VPPChann.SendRequest(req).ReceiveReply(reply); err != nil {
+		log.WithFields(log.Fields{"module": "vpp-mgr"}).Error(err)
+		return err
+	}
+	return nil
+}
+
+func (v *VPPManager) AddNATRule(index nat.InterfaceIndex, localAddr net.IP, localPort uint16, externalAddr net.IP, externalPort uint16, proto uint8) error {
+	req := &nat.Nat44AddDelStaticMapping{
+		IsAdd:             true,
+		LocalIPAddress:    localAddr,
+		ExternalIPAddress: externalAddr,
+		Protocol:          proto,
+		LocalPort:         localPort,
+		ExternalPort:      externalPort,
+		ExternalSwIfIndex: index,
+		VrfID:             0,
+	}
+	reply := &nat.Nat44AddDelStaticMappingReply{}
+
+	if err := v.VPPChann.SendRequest(req).ReceiveReply(reply); err != nil {
+		log.WithFields(log.Fields{"module": "vpp-mgr"}).Error(err)
+		return err
+	}
+	return nil
+}
+
+func (v *VPPManager) AddTAPIface(ifname string, ifaddr, gwaddr net.IP) (interfaces.InterfaceIndex, error) {
+	req := &tapv2.TapCreateV2{
+		HostIfNameSet:    1,
+		HostIfName:       []byte(ifname),
+		HostIP4AddrSet:   1,
+		HostIP4Addr:      ifaddr,
+		HostIP4PrefixLen: 32,
+		HostIP4GwSet:     1,
+		HostIP4Gw:        gwaddr,
+	}
+	reply := &tapv2.TapCreateV2Reply{}
+	if err := v.VPPChann.SendRequest(req).ReceiveReply(reply); err != nil {
+		return 0, err
+	}
+	return reply.SwIfIndex, nil
+}
+
+func (v *VPPManager) AddIfaceToBridge(ifaceID uint32, bridgeID uint32, isBVI bool) error {
+	req := &l2.SwInterfaceSetL2Bridge{
+		RxSwIfIndex: ifaceID,
+		BdID:        bridgeID,
+		PortType:    l2.L2_API_PORT_TYPE_NORMAL,
+		Shg:         0,
+		Enable:      1,
+	}
+	if isBVI {
+		req.PortType = l2.L2_API_PORT_TYPE_BVI
+	}
+	reply := &l2.SwInterfaceSetL2BridgeReply{}
+
+	if err := v.VPPChann.SendRequest(req).ReceiveReply(reply); err != nil {
+		log.WithFields(log.Fields{"module": "vpp-mgr"}).Error(err)
+		return err
+	}
+	return nil
+}
+
 func StringtoAddr(IPAddress string) (interfaces.IP4Address, error) {
 	var output [4]uint8
 	var err error

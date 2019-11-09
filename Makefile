@@ -10,6 +10,9 @@ agent:
 	binapi-generator --input-file=/usr/share/vpp/api/interface.api.json --output-dir=binapi
 	binapi-generator --input-file=/usr/share/vpp/api/l2.api.json --output-dir=binapi
 	binapi-generator --input-file=/usr/share/vpp/api/dhcp.api.json --output-dir=binapi
+	binapi-generator --input-file=/usr/share/vpp/api/tapv2.api.json --output-dir=binapi
+	binapi-generator --input-file=/usr/share/vpp/api/nat.api.json --output-dir=binapi
+
 	go vet cmd/wan-agent/main.go
 	go build -o bin/wan-agent cmd/wan-agent/main.go
 

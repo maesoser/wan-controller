@@ -58,7 +58,8 @@ func (m *Metric) Update() {
 }
 
 const (
-	kB = 1024
+	kB         = 1024
+	moduleName = "wan-metrics"
 )
 
 func (m *Metric) Init() {
@@ -66,7 +67,7 @@ func (m *Metric) Init() {
 	m.vppClient = statsclient.NewStatsClient(statsclient.DefaultSocketName)
 	m.vppConnection, err = core.ConnectStats(m.vppClient)
 	if err != nil {
-		log.WithFields(log.Fields{"module": "wan-metrics", "error": err.Error()}).Errorln("Error connecting to VPP Stats Endpoint")
+		log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Errorln("Error connecting to VPP Stats Endpoint")
 	}
 }
 
@@ -79,7 +80,7 @@ func (m *Metric) UpdateSystem() {
 
 	err := unix.Sysinfo(si)
 	if err != nil {
-		log.WithFields(log.Fields{"module": "wan-metrics"}).Error("Error at syscall.Sysinfo:" + err.Error())
+		log.WithFields(log.Fields{"module": moduleName}).Error("Error at syscall.Sysinfo:" + err.Error())
 	}
 	// scale := 65536.0 // magic
 
@@ -95,7 +96,7 @@ func (m *Metric) UpdateSystem() {
 	m.Load = make([]float64, 3)
 	loads, err := load.Avg()
 	if err != nil {
-		log.WithFields(log.Fields{"module": "wan-metrics"}).Error("Error getting system load:" + err.Error())
+		log.WithFields(log.Fields{"module": moduleName}).Error("Error getting system load:" + err.Error())
 	} else {
 		m.Load[0] = loads.Load1
 		m.Load[1] = loads.Load5
@@ -124,39 +125,28 @@ func (m *Metric) UpdateInterfaces() {
 func (m *Metric) UpdateUnixInterfaces() {
 	ifaces, err := mnet.IOCounters(true)
 	if err != nil {
-		log.Fatalln("Connecting failed:", err)
-	}
-	defer c.Disconnect()
-}
-func (m *Metric) UpdateInterfaces() {
-
-	fmt.Println("Listing interface stats..")
-	stats := new(api.InterfaceStats)
-	if err := c.GetInterfaceStats(stats); err != nil {
-		log.Fatalln("getting interface stats failed:", err)
-	}
-	for _, iface := range stats.Interfaces {
-		fmt.Printf(" - %+v\n", iface)
-
-		var newIface Iface
-		newIface.Name = iface.Name
-		newIface.RxBytes = iface.BytesRecv
-		newIface.TxBytes = iface.BytesSent
-		newIface.RxDropped = iface.Dropin
-		newIface.TxDropped = iface.Dropout
-		newIface.RxPackets = iface.PacketsRecv
-		newIface.TxPackets = iface.PacketsSent
-		newIface.TxErrors = iface.Errout
-		newIface.RxErrors = iface.Errin
-		m.Ifaces = append(m.Ifaces, newIface)
-
+		log.WithFields(log.Fields{"module": moduleName}).Error("Error getting system ifaces" + err.Error())
+	} else {
+		for _, iface := range ifaces {
+			var newIface Iface
+			newIface.Name = iface.Name
+			newIface.RxBytes = iface.BytesRecv
+			newIface.TxBytes = iface.BytesSent
+			newIface.RxDropped = iface.Dropin
+			newIface.TxDropped = iface.Dropout
+			newIface.RxPackets = iface.PacketsRecv
+			newIface.TxPackets = iface.PacketsSent
+			newIface.TxErrors = iface.Errout
+			newIface.RxErrors = iface.Errin
+			m.Ifaces = append(m.Ifaces, newIface)
+		}
 	}
 }
 
 func (m *Metric) UpdateDPDKInterfaces() {
 	stats := new(api.InterfaceStats)
 	if err := m.vppConnection.GetInterfaceStats(stats); err != nil {
-		log.WithFields(log.Fields{"module": "wan-metrics", "error": err.Error()}).Errorln("Error getting DPDK interface stats")
+		log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Errorln("Error getting DPDK interface stats")
 	}
 	for _, iface := range stats.Interfaces {
 		var newIface Iface
@@ -194,7 +184,7 @@ func (m *Metric) UpdateFilesystems() {
 	m.Disks = nil
 	partitions, err := disk.Partitions(false)
 	if err != nil {
-		log.WithFields(log.Fields{"module": "wan-metrics", "error": err.Error()}).Errorln("Error getting disk data:")
+		log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Errorln("Error getting disk data:")
 	} else {
 		for _, partition := range partitions {
 			var newFS Filesystem
@@ -202,7 +192,7 @@ func (m *Metric) UpdateFilesystems() {
 			newFS.Mountpoint = partition.Mountpoint
 			stats, err := disk.Usage(newFS.Mountpoint)
 			if err != nil {
-				log.WithFields(log.Fields{"module": "wan-metrics"}).Error("Error getting disk data:" + err.Error())
+				log.WithFields(log.Fields{"module": moduleName}).Error("Error getting disk data:" + err.Error())
 			} else {
 				newFS.Free = stats.Free
 				newFS.Size = stats.Total
@@ -221,15 +211,15 @@ func (m *Metric) StringFilesystems() string {
 	return out
 }
 
-func (m *Metric) LogSystem() {
+func (m *Metric) LogMetrics() {
 	defer m.mtx.Unlock()
 	m.mtx.Lock()
-	log.WithFields(log.Fields{"module": "wan-metrics"}).Infof("Uptime: %v  Load: %v  Mem: %d/%d kB", m.Uptime, m.Load, m.MemFree, m.MemTotal)
+	log.WithFields(log.Fields{"module": moduleName}).Infof("Uptime: %v  Load: %v  Mem: %d/%d kB", m.Uptime, m.Load, m.MemFree, m.MemTotal)
 	for _, fs := range m.Disks {
-		log.WithFields(log.Fields{"module": "wan-metrics"}).Infof("Fs: %s -> %s  Free: %d/%d kB", fs.Device, fs.Mountpoint, fs.Free, fs.Size)
+		log.WithFields(log.Fields{"module": moduleName}).Infof("Fs: %s -> %s  Free: %d/%d kB", fs.Device, fs.Mountpoint, fs.Free, fs.Size)
 	}
 	for _, iface := range m.Ifaces {
-		log.WithFields(log.Fields{"module": "wan-metrics"}).Infof("Net: %s  TX: %d  RX: %d kB", iface.Name, iface.TxBytes, iface.RxBytes)
+		log.WithFields(log.Fields{"module": moduleName}).Infof("Net: %s  TX: %d  RX: %d kB", iface.Name, iface.TxBytes, iface.RxBytes)
 	}
 }
 
