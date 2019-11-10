@@ -20,7 +20,7 @@ Once it is found, it applies that configuration, and sends hello message to the 
 
 ### VPP Configuration file:
 
-```
+```yaml
 unix {
   nodaemon
   log /var/log/vpp/vpp.log
@@ -44,17 +44,17 @@ socksvr {
 }
 
 cpu {
-	# main-core 1
-	# corelist-workers 2-3,18-19
-	# skip-cores 4
-	# workers 2
-	# scheduler-policy fifo
-	# scheduler-priority 50
+     # main-core 1
+     # corelist-workers 2-3,18-19
+     # skip-cores 4
+     # workers 2
+     # scheduler-policy fifo
+     # scheduler-priority 50
 }
 
 dpdk {
   dev 0000:01:00.0 {
-	name port1
+        name port1
   }
   dev 0000:02:00.0 {
         name port2
@@ -85,7 +85,7 @@ plugins {
 
 ### VPP Configuration steps for a common router on top of telco router:
 
-```
+```yaml
 comment { configure wan port }
 set int state port1 up
 comment { set int mac address port1 7D:3F:69:54:b8:4C }
@@ -137,6 +137,41 @@ When this happens, `wan-agent` executes the following steps:
   3. Waits 10 seconds for the configuration to be applied.
   4. During 50 seconds it monitors connection to the controllers as well as to other "health endpoints".
   5. If connection is lost, it performs a rollback. If it is not, it deletes backup configuration and accepts new one as the good one.
+
+## Configuration file
+
+Json/yaml configuration file:
+
+```yaml
+---
+name: vppRouter
+description: My Home Router
+uuid:  f61ba3a5-012c-46d9-9f92-c95d02ddb5c0 
+dns:
+- 8.8.8.8
+- 8.8.4.4
+network:
+  name: HomeNetwork
+  description: My Home Network
+  uuid:  5bfb30c8-e1e7-40b6-af43-a043f2eb3b20 
+  addr: 192.168.2.0
+  mask: 255.255.255.0
+  gateway: 192.168.2.1
+  uplink:
+    name: port1
+    address: 0.0.0.0
+    dhcp_enabled: true
+  ports:
+  - port2
+  - port3
+  - port4
+  - port5
+encryption:
+  cert: 'J7WBXT9AZHD2RPM3YLN732XO1WNLMZEHUMZJOZPEVD7YVUTYM493IKY9Z924XHRUD3870FTEKEQA'
+  key: '2178VI4CAPBIZZ23R939E0N8VKMEC57ZOZTVE5Q8KLQBZ9PV316Y1GWB2NPVZT5ZITG0OJ5XEF69LMZEHUMZJOZPEV'
+controllers:
+- 192.168.0.76:6633
+```
 
 ## Controller Design
 
