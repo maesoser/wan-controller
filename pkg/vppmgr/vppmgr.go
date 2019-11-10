@@ -18,6 +18,21 @@ import (
 	"strings"
 )
 
+func StringtoAddr(IPAddress string) (interfaces.IP4Address, error) {
+	var output [4]uint8
+	var err error
+	for i, a := range strings.Split(IPAddress, ".") {
+		var n uint64
+		n, err = strconv.ParseUint(a, 10, 8)
+		output[i] = uint8(n)
+		if err != nil {
+			return output, err
+		}
+	}
+	return output, nil
+
+}
+
 type VPPManager struct {
 	VPPConn  *core.Connection
 	VPPChann api.Channel
@@ -187,21 +202,6 @@ func (v *VPPManager) AddIfaceToBridge(ifaceID uint32, bridgeID uint32, isBVI boo
 		return err
 	}
 	return nil
-}
-
-func StringtoAddr(IPAddress string) (interfaces.IP4Address, error) {
-	var output [4]uint8
-	var err error
-	for i, a := range strings.Split(IPAddress, ".") {
-		var n uint64
-		n, err = strconv.ParseUint(a, 10, 8)
-		output[i] = uint8(n)
-		if err != nil {
-			return output, err
-		}
-	}
-	return output, nil
-
 }
 
 func (v *VPPManager) AddIfaceAddress(ifindex interfaces.InterfaceIndex, IPAddress string) error {

@@ -14,15 +14,19 @@ import (
 	"time"
 )
 
+const (
+	moduleName = "wan-dhcp"
+)
+
 func Send(data []byte, address, uuid string) error {
 
 	client := http.Client{
-		Timeout: time.Second * 10,
+		Timeout: time.Second * 5,
 		Transport: &http.Transport{
 			Dial: (&net.Dialer{
-				Timeout: 5 * time.Second,
+				Timeout: 3 * time.Second,
 			}).Dial,
-			TLSHandshakeTimeout: 5 * time.Second,
+			TLSHandshakeTimeout: 3 * time.Second,
 		},
 	}
 	endpoint := "http://" + address + "/" + uuid + "/metrics"
@@ -54,19 +58,19 @@ func main() {
 
 	sleepTime, err := time.ParseDuration(*Interval)
 	if err != nil {
-		log.WithFields(log.Fields{"module": "wan-metrics", "error": err.Error()}).Fatalln("Error parsing interval")
+		log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Fatalln("Error parsing interval")
 	}
 
-	log.WithFields(log.Fields{"module": "wan-metrics"}).Info("Starting wan-metrics")
+	log.WithFields(log.Fields{"module": moduleName}).Info("Starting wan-metrics")
 
 	err = ioutil.WriteFile(*PidPath, []byte(fmt.Sprintf("%d", os.Getpid())), 0664)
 	if err != nil {
-		log.WithFields(log.Fields{"module": "wan-metrics", "error": err.Error()}).Fatalln("Error writting PID file")
+		log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Fatalln("Error writting PID file")
 	}
 
 	err = c.Load(*ConfigPath)
 	if err != nil {
-		log.WithFields(log.Fields{"module": "wan-metrics", "error": err.Error()}).Fatalln("Error reading config")
+		log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Fatalln("Error reading config")
 	}
 	target := c.GetController()
 	monitor.Init()
@@ -78,7 +82,7 @@ func main() {
 		data, _ := monitor.Data()
 		err := Send(data, target, c.UUID)
 		if err != nil {
-			log.WithFields(log.Fields{"module": "wan-metrics", "error": err.Error()}).Errorln("Error sending metrics")
+			log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Errorln("Error sending metrics")
 		}
 		time.Sleep(sleepTime)
 	}
