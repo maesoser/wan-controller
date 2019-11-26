@@ -146,14 +146,14 @@ Json/yaml configuration file:
 ---
 name: vppRouter
 description: My Home Router
-uuid:  f61ba3a5-012c-46d9-9f92-c95d02ddb5c0 
+uuid:  f61ba3a5-012c-46d9-9f92-c95d02ddb5c0
 dns:
 - 8.8.8.8
 - 8.8.4.4
 network:
   name: HomeNetwork
   description: My Home Network
-  uuid:  5bfb30c8-e1e7-40b6-af43-a043f2eb3b20 
+  uuid:  5bfb30c8-e1e7-40b6-af43-a043f2eb3b20
   addr: 192.168.2.0
   mask: 255.255.255.0
   gateway: 192.168.2.1
@@ -193,6 +193,7 @@ Controller software is designed to be installed on a docker/kubernetes cluster. 
 ## TODO
 
 - [ ] Include custom NAT rules.
+- [ ] Include WAN Port config
 - [ ] Include [IPSEC](https://wiki.fd.io/view/VPP/IPSec_and_IKEv2)/[wireguard](https://www.wireguard.com) support for encrypted L3 traffic.
 - [ ] Include pihole monitorization / configuration from the controller
 - [ ] Include support for [PPPoE](https://docs.fd.io/vpp/17.10/clicmd_src_plugins_pppoe.html) uplink.
@@ -215,4 +216,3 @@ Controller software is designed to be installed on a docker/kubernetes cluster. 
 [Advance Command Execution in go](https://blog.kowalczyk.info/article/wOYk/advanced-command-execution-in-go-with-osexec.html)
 
 [Simple netlink library for go](https://github.com/vishvananda/netlink)
-

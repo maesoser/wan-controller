@@ -41,5 +41,11 @@ func main() {
 	if err != nil {
 		log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Fatalln("Error reading config")
 	}
-	dhcpserver.Start()
+	server := dhcpserver.NewServer(
+		c.Network.Gateway,
+		c.Network.Address,
+		c.Network.Gateway,
+		c.DNSs,
+		"")
+	server.ServeDHCP()
 }

@@ -1,55 +1,131 @@
 package dhcpserver
 
 import (
+	"fmt"
 	"log"
 	"net"
+	"time"
 
-	"github.com/insomniacslk/dhcp/dhcpv4"
-	"github.com/insomniacslk/dhcp/dhcpv4/server4"
+	dhcp "github.com/krolaw/dhcp4"
 )
 
-// https://en.wikipedia.org/wiki/Dynamic_Host_Configuration_Protocol
+type DHCPLease struct {
+	IPAddr   net.IP
+	MACAddr  net.HardwareAddr
+	Creation time.Time
+}
 
-const (
-	moduleName = "wan-dhcp"
-)
+type Server struct {
+	serverIP      net.IP
+	options       dhcp.Options
+	leaseDuration time.Duration
+	leases        []DHCPLease
+}
 
-func handler(conn net.PacketConn, peer net.Addr, m *dhcpv4.DHCPv4) {
-	if m == nil {
-		log.WithFields(log.Fields{"module": moduleName}).Error("Packet is empty")
-		return
+func NewServer(
+	serverIP net.IP,
+	subnet net.IPMask,
+	gateway net.IP,
+	dns net.IP,
+	domainName string) Server {
+	options := dhcp.Options{
+		dhcp.OptionSubnetMask:       subnet,
+		dhcp.OptionRouter:           gateway,
+		dhcp.OptionDomainNameServer: dns,
 	}
-	log.Print(m.Summary())
-
-	reply, err := dhcpv4.NewReplyFromRequest(m)
-	if err != nil {
-		log.WithFields(log.Fields{"module": moduleName}).Error("NewReplyFromRequest failed: %v", err)
-		return
+	if domainName != "" {
+		options[dhcp.OptionDomainName] = []byte(domainName)
 	}
-	reply.UpdateOption(dhcpv4.OptServerIdentifier(net.IP{1, 2, 3, 4}))
-	switch mt := m.MessageType(); mt {
-	case dhcpv4.MessageTypeDiscover:
-		reply.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeOffer))
-	case dhcpv4.MessageTypeRequest:
-		reply.UpdateOption(dhcpv4.OptMessageType(dhcpv4.MessageTypeAck))
-	default:
-		log.WithFields(log.Fields{"module": moduleName}).Error("Unhandled message type: %v", mt)
-		return
-	}
-
-	if _, err := conn.WriteTo(reply.ToBytes(), peer); err != nil {
-		log.WithFields(log.Fields{"module": moduleName}).Error("Cannot reply to client: %v", err)
+	log.Printf("serving as id %s, subnet %s gw %s dns %s domain %s\n", serverIP, subnet, gateway, dns, domainName)
+	return Server{
+		serverIP:      serverIP,
+		options:       options,
+		leaseDuration: 24 * time.Hour,
 	}
 }
 
-func Start() {
-	laddr := net.UDPAddr{
-		IP:   net.ParseIP("0.0.0.0"),
-		Port: 67,
+func (s Server) findLease(req dhcp.Packet) (DHCPLease, error) {
+	for _, lease := range s.leases {
+		if lease.MACAddr.String() == req.CHAddr().String() {
+			return lease, nil
+		}
 	}
-	server, err := server4.NewServer("lstack", &laddr, handler, nil)
+	return DHCPLease{}, fmt.Errorf("No preassigned addr found on Leases database")
+}
+
+func (s Server) getEmptyAddrFromPool() net.IP {
+	var result net.IP
+	if len(s.leases) == 0 {
+		return result
+	} else {
+		startAddr := s.leases[len(s.leases)-1].IPAddr
+		result = startAddr
+	}
+	return result
+}
+
+func (s Server) createLease(req dhcp.Packet) DHCPLease {
+	var lease DHCPLease
+	lease.MACAddr = req.CHAddr()
+	lease.Creation = time.Now()
+	return lease
+}
+
+func (s Server) dhcpDiscover(req dhcp.Packet, options dhcp.Options) dhcp.Packet {
+
+	lease, err := s.findLease(req)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		lease = s.createLease(req)
+		s.leases = append(s.leases, lease)
 	}
-	server.Serve()
+
+	log.Printf("Offering %s to %s", lease.IPAddr, req.CHAddr().String())
+	return dhcp.ReplyPacket(req,
+		dhcp.Offer,
+		s.serverIP,
+		lease.IPAddr,
+		s.leaseDuration,
+		s.options.SelectOrderOrAll(options[dhcp.OptionParameterRequestList]),
+	)
+}
+
+func (s Server) dhcpRequest(req dhcp.Packet, options dhcp.Options) dhcp.Packet {
+
+	if server, ok := options[dhcp.OptionServerIdentifier]; ok && !net.IP(server).Equal(s.serverIP) {
+		log.Printf("message for a different server?")
+		return nil
+	}
+	reqIP := net.IP(options[dhcp.OptionRequestedIPAddress])
+	if reqIP == nil {
+		reqIP = net.IP(req.CIAddr())
+	}
+
+	if len(reqIP) == 4 && !reqIP.Equal(net.IPv4zero) {
+		lease, err := s.findLease(req)
+		if err != nil {
+			log.Printf("NAK to %s: %s\n", req.CHAddr().String(), err)
+			return dhcp.ReplyPacket(req, dhcp.NAK, s.serverIP, nil, 0, nil)
+		}
+		if lease.IPAddr.String() != reqIP.String() {
+			log.Printf("NAK to %s: expected %s, requested %s\n", req.CHAddr().String(), lease.IPAddr.String(), reqIP.String())
+			return dhcp.ReplyPacket(req, dhcp.NAK, s.serverIP, nil, 0, nil)
+		}
+		return dhcp.ReplyPacket(req, dhcp.ACK, s.serverIP, reqIP, s.leaseDuration,
+			s.options.SelectOrderOrAll(options[dhcp.OptionParameterRequestList]))
+	}
+	return dhcp.ReplyPacket(req, dhcp.NAK, s.serverIP, nil, 0, nil)
+}
+
+// ServeDHCP handles incoming dhcp requests.
+func (s Server) ServeDHCP(req dhcp.Packet, msgType dhcp.MessageType, options dhcp.Options) dhcp.Packet {
+
+	switch msgType {
+	case dhcp.Discover:
+		return s.dhcpDiscover(req, options)
+	case dhcp.Request:
+		return s.dhcpRequest(req, options)
+	}
+
+	return nil
 }
