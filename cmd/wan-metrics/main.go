@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"github.com/maesoser/wan-controller/pkg/config"
 	"github.com/maesoser/wan-controller/pkg/metrics"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -18,28 +17,6 @@ const (
 	moduleName = "wan-dhcp"
 )
 
-func Send(data []byte, address, uuid string) error {
-
-	client := http.Client{
-		Timeout: time.Second * 5,
-		Transport: &http.Transport{
-			Dial: (&net.Dialer{
-				Timeout: 3 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout: 3 * time.Second,
-		},
-	}
-	endpoint := "http://" + address + "/" + uuid + "/metrics"
-	resp, err := client.Post(endpoint, "application/json", bytes.NewBuffer(data))
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("Returned status code is %d (%s)", resp.StatusCode, resp.Status)
-	}
-	return nil
-}
-
 func main() {
 
 	log.SetFormatter(&log.TextFormatter{
@@ -47,19 +24,11 @@ func main() {
 		FullTimestamp: true,
 	})
 
-	var c config.Config
 	var monitor metrics.Metric
 
-	Interval := flag.String("interval", "5m", "Update Interval")
-	Verbose := flag.Bool("verbose", false, "Verbose output")
-	ConfigPath := flag.String("config", "/etc/wan-data/routerconfig.json", "Configuration Path")
+	ListenAddr := flag.String("listen", "127.0.0.1:9600", "Server Addr")
 	PidPath := flag.String("pid", "/etc/wan-data/wan-metrics.pid", "PID File")
 	flag.Parse()
-
-	sleepTime, err := time.ParseDuration(*Interval)
-	if err != nil {
-		log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Fatalln("Error parsing interval")
-	}
 
 	log.WithFields(log.Fields{"module": moduleName}).Info("Starting wan-metrics")
 
@@ -68,22 +37,10 @@ func main() {
 		log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Fatalln("Error writting PID file")
 	}
 
-	err = c.Load(*ConfigPath)
-	if err != nil {
-		log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Fatalln("Error reading config")
-	}
-	target := c.GetController()
 	monitor.Init()
-	for {
-		monitor.Update()
-		if *Verbose {
-			monitor.LogSystem()
-		}
-		data, _ := monitor.Data()
-		err := Send(data, target, c.UUID)
-		if err != nil {
-			log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Errorln("Error sending metrics")
-		}
-		time.Sleep(sleepTime)
+	log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Info("Listening at %s", *ListenAddr)
+	err := http.ListenAndServe(*ListenAddr, monitor)
+	log.Panic(err)
+
 	}
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/maesoser/wan-controller/pkg/config"
 	"github.com/maesoser/wan-controller/pkg/dhcpserver"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
@@ -23,10 +22,6 @@ func main() {
 		FullTimestamp: true,
 	})
 
-	var c config.Config
-	var monitor metrics.Metric
-
-	ConfigPath := flag.String("config", "/etc/wan-data/routerconfig.json", "Configuration Path")
 	PidPath := flag.String("pid", "/etc/wan-data/wan-dhcp.pid", "PID File")
 	flag.Parse()
 
@@ -37,15 +32,6 @@ func main() {
 		log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Fatalln("Error writting PID file")
 	}
 
-	err = c.Load(*ConfigPath)
-	if err != nil {
-		log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Fatalln("Error reading config")
-	}
-	server := dhcpserver.NewServer(
-		c.Network.Gateway,
-		c.Network.Address,
-		c.Network.Gateway,
-		c.DNSs,
-		"")
+	server := dhcp.Server{}
 	server.ServeDHCP()
 }

@@ -52,6 +52,8 @@ type Metric struct {
 }
 
 func (m *Metric) Update() {
+	defer m.mtx.Unlock()
+	m.mtx.Lock()
 	m.UpdateSystem()
 	m.UpdateInterfaces()
 	m.UpdateFilesystems()
@@ -83,9 +85,6 @@ func (m *Metric) UpdateSystem() {
 		log.WithFields(log.Fields{"module": moduleName}).Error("Error at syscall.Sysinfo:" + err.Error())
 	}
 	// scale := 65536.0 // magic
-
-	defer m.mtx.Unlock()
-	m.mtx.Lock()
 
 	unit := uint64(si.Unit) * kB
 
@@ -223,14 +222,16 @@ func (m *Metric) LogMetrics() {
 	}
 }
 
-func (m *Metric) Data() ([]byte, error) {
+func (m *Metric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	m.Update()
+
 	defer m.mtx.Unlock()
 	m.mtx.Lock()
-
 	data, err := json.Marshal(m)
 	if err != nil {
 		return nil, err
 	}
-
-	return data, nil
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
 }
