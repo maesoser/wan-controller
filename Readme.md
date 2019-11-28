@@ -114,7 +114,7 @@ set int l2 bridge port6 1
 set int state port6 up
 
 comment { create tap iface for dhcp server and host-stack access }
-create tap host-if-name lstack host-ip4-addr 192.168.2.2/24
+create tap host-if-name lstack host-ip4-addr 192.168.2.2/24 host-ip4-gw 192.168.1.1
 set int l2 bridge tap0 1
 set int state tap0 up
 
