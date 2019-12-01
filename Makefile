@@ -26,7 +26,7 @@ dependencies:
 	go get github.com/bennyscetbun/jsongo
 	go get github.com/ftrvxmtrx/fd
 	go get git.fd.io/govpp.git
-	go get github.com/insomniacslk/dhcp
+	go get github.com/krolaw/dhcp4
 	go get github.com/vishvananda/netlink
 	go install git.fd.io/govpp.git/cmd/binapi-generator
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
-
+        "net/http"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/load"
 	mnet "github.com/shirou/gopsutil/net"
@@ -223,14 +223,14 @@ func (m *Metric) LogMetrics() {
 }
 
 func (m *Metric) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
 	m.Update()
 
 	defer m.mtx.Unlock()
 	m.mtx.Lock()
 	data, err := json.Marshal(m)
 	if err != nil {
-		return nil, err
+		log.Println(err)
+		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(data)

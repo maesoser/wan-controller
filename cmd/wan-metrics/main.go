@@ -1,16 +1,13 @@
 package main
 
-import (
-	"bytes"
+import (	
 	"flag"
 	"fmt"
 	"github.com/maesoser/wan-controller/pkg/metrics"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"os"
-	"time"
 )
 
 const (
@@ -31,16 +28,15 @@ func main() {
 	flag.Parse()
 
 	log.WithFields(log.Fields{"module": moduleName}).Info("Starting wan-metrics")
-
-	err = ioutil.WriteFile(*PidPath, []byte(fmt.Sprintf("%d", os.Getpid())), 0664)
+	
+        err := ioutil.WriteFile(*PidPath, []byte(fmt.Sprintf("%d", os.Getpid())), 0664)
 	if err != nil {
 		log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Fatalln("Error writting PID file")
 	}
 
 	monitor.Init()
-	log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Info("Listening at %s", *ListenAddr)
-	err := http.ListenAndServe(*ListenAddr, monitor)
+	log.WithFields(log.Fields{"module": moduleName}).Infof("Listening at %s", *ListenAddr)
+	err = http.ListenAndServe(*ListenAddr, &monitor)
 	log.Panic(err)
 
-	}
 }
