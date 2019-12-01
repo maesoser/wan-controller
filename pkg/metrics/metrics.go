@@ -3,14 +3,14 @@ package metrics
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
-	"time"
-        "net/http"
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/load"
 	mnet "github.com/shirou/gopsutil/net"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
+	"net/http"
+	"sync"
+	"time"
 
 	// "git.fd.io/govpp.git/adapter"
 	"git.fd.io/govpp.git/adapter/statsclient"
@@ -46,6 +46,7 @@ type Metric struct {
 	MemBuff       uint64        `json:"membuff"`
 	Disks         []Filesystem  `json:"disks"`
 	Ifaces        []Iface       `json:"ifaces"`
+	DNS           PiHoleStatus  `json:"pihole"`
 	mtx           sync.Mutex
 	vppClient     *statsclient.StatsClient
 	vppConnection *core.StatsConnection
@@ -57,6 +58,7 @@ func (m *Metric) Update() {
 	m.UpdateSystem()
 	m.UpdateInterfaces()
 	m.UpdateFilesystems()
+	m.DNS.UpdateDNS("127.0.0.1:8993")
 }
 
 const (

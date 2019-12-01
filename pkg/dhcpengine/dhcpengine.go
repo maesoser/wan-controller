@@ -1,14 +1,14 @@
 package dhcpengine
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-	log "github.com/sirupsen/logrus"	
+	dhcp "github.com/krolaw/dhcp4"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"time"
-	"bytes"
-	dhcp "github.com/krolaw/dhcp4"
 )
 
 const (
@@ -32,13 +32,13 @@ type DHCPLease struct {
 }
 
 type Server struct {
-	Config      DHCPConfig
-	Leases        []DHCPLease
+	Config DHCPConfig
+	Leases []DHCPLease
 }
 
 type DHCPConfig struct {
 	ServerIP      net.IP        `json:"server"`
-	Subnet        net.IP	    `json:"subnet"`
+	Subnet        net.IP        `json:"subnet"`
 	Gateway       net.IP        `json:"gw"`
 	DNS           net.IP        `json:"dns"`
 	DomainName    string        `json:"domain"`
@@ -51,25 +51,25 @@ func NewServer(
 	gateway net.IP,
 	dns net.IP,
 	domainName string) Server {
-	log.WithFields(log.Fields{"module": moduleName}).Info("Serving from %s, net: %s/%s dns: %s domain: %s\n", 
+	log.WithFields(log.Fields{"module": moduleName}).Info("Serving from %s, net: %s/%s dns: %s domain: %s\n",
 		serverIP, gateway, subnet, dns, domainName)
 	config := DHCPConfig{
-		ServerIP: serverIP,
-		Subnet: subnet,
-		Gateway: gateway,
-		DNS: dns,
-		DomainName: domainName,
+		ServerIP:      serverIP,
+		Subnet:        subnet,
+		Gateway:       gateway,
+		DNS:           dns,
+		DomainName:    domainName,
 		LeaseDuration: 24 * time.Hour,
 	}
-        return Server{
+	return Server{
 		Config: config,
 	}
 }
 
-func (s *Server) getOptions() dhcp.Options{
+func (s *Server) getOptions() dhcp.Options {
 	options := dhcp.Options{
-		dhcp.OptionSubnetMask: s.getMask(),
-		dhcp.OptionRouter: s.getGateway(),
+		dhcp.OptionSubnetMask:       s.getMask(),
+		dhcp.OptionRouter:           s.getGateway(),
 		dhcp.OptionDomainNameServer: s.getDNS(),
 	}
 	if s.Config.DomainName != "" {
@@ -161,8 +161,8 @@ func (s *Server) dhcpDiscover(req dhcp.Packet, options dhcp.Options) dhcp.Packet
 		lease = s.createLease(req)
 		s.Leases = append(s.Leases, lease)
 	}
- 	log.WithFields(log.Fields{"module": moduleName}).Info("Offering %s to %s", lease.IPAddr, req.CHAddr().String())
-        opts := s.getOptions()
+	log.WithFields(log.Fields{"module": moduleName}).Info("Offering %s to %s", lease.IPAddr, req.CHAddr().String())
+	opts := s.getOptions()
 	return dhcp.ReplyPacket(req,
 		dhcp.Offer,
 		s.Config.ServerIP,
@@ -174,7 +174,7 @@ func (s *Server) dhcpDiscover(req dhcp.Packet, options dhcp.Options) dhcp.Packet
 
 func (s *Server) dhcpRequest(req dhcp.Packet, options dhcp.Options) dhcp.Packet {
 	if server, ok := options[dhcp.OptionServerIdentifier]; ok && !net.IP(server).Equal(s.Config.ServerIP) {
-		 log.WithFields(log.Fields{"module": moduleName}).Info("Message for a different server?")
+		log.WithFields(log.Fields{"module": moduleName}).Info("Message for a different server?")
 		return nil
 	}
 	reqIP := net.IP(options[dhcp.OptionRequestedIPAddress])
@@ -185,11 +185,11 @@ func (s *Server) dhcpRequest(req dhcp.Packet, options dhcp.Options) dhcp.Packet 
 	if len(reqIP) == 4 && !reqIP.Equal(net.IPv4zero) {
 		lease, err := s.findLeaseByMac(req.CHAddr())
 		if err != nil {
-			 log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Errorf("NAK to %s\n", req.CHAddr().String())
+			log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Errorf("NAK to %s\n", req.CHAddr().String())
 			return dhcp.ReplyPacket(req, dhcp.NAK, s.Config.ServerIP, nil, 0, nil)
 		}
 		if lease.IPAddr.Equal(reqIP) == false {
-			 log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Errorf("NAK to %s: expected %s, requested %s\n",
+			log.WithFields(log.Fields{"module": moduleName, "error": err.Error()}).Errorf("NAK to %s: expected %s, requested %s\n",
 				req.CHAddr().String(), lease.IPAddr.String(), reqIP.String())
 			return dhcp.ReplyPacket(req, dhcp.NAK, s.Config.ServerIP, nil, 0, nil)
 		}
@@ -199,10 +199,24 @@ func (s *Server) dhcpRequest(req dhcp.Packet, options dhcp.Options) dhcp.Packet 
 	return dhcp.ReplyPacket(req, dhcp.NAK, s.Config.ServerIP, nil, 0, nil)
 }
 
+func (s *Server) dhcpRelease(req dhcp.Packet, options dhcp.Options) int {
+	var leases []DHCPLease
+	deleted := 0
+	for _, lease := range s.Leases {
+		if lease.MACAddr.String() != eq.CHAddr().String() {
+			leases = append(leases, lease)
+		} else {
+			deleted++
+		}
+	}
+	s.Leases = leases
+	return deleted
+}
+
 // ServeDHCP handles incoming dhcp requests.
 func (s *Server) ServeDHCP(req dhcp.Packet, msgType dhcp.MessageType, options dhcp.Options) dhcp.Packet {
 	if s.Config.ServerIP == nil {
-		 log.WithFields(log.Fields{"module": moduleName}).Errorln("Server not yet configuring, waiting for a POST request with the configuration")
+		log.WithFields(log.Fields{"module": moduleName}).Errorln("Server not yet configuring, waiting for a POST request with the configuration")
 		return nil
 	}
 	log.WithFields(log.Fields{"module": moduleName}).Info("Recv DHCP type %\n", msgType)
@@ -211,6 +225,10 @@ func (s *Server) ServeDHCP(req dhcp.Packet, msgType dhcp.MessageType, options dh
 		return s.dhcpDiscover(req, options)
 	case dhcp.Request:
 		return s.dhcpRequest(req, options)
+	case dhcp.Release:
+		return s.dhcpRelease(req, options)
+	case dhcp.Decline:
+		return s.dhcpRelease(req, options)
 	}
 
 	return nil
@@ -219,30 +237,46 @@ func (s *Server) ServeDHCP(req dhcp.Packet, msgType dhcp.MessageType, options dh
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-                if(r.URL.Path == "/config"){
+		if r.URL.Path == "/config" {
 			b := new(bytes.Buffer)
 			json.NewEncoder(b).Encode(s.Config)
 			fmt.Fprintf(w, "%v", b)
-		} else{
+		} else if r.URL.Path == "/leases" {
 			b := new(bytes.Buffer)
 			json.NewEncoder(b).Encode(s.Leases)
 			fmt.Fprintf(w, "%v", b)
 		}
 	case "POST":
-		var config DHCPConfig
-		err := json.NewDecoder(r.Body).Decode(&config)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+		if r.URL.Path == "/config" {
+			var config DHCPConfig
+			err := json.NewDecoder(r.Body).Decode(&config)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			log.WithFields(log.Fields{"module": moduleName}).Info("Serving from %s, Net: %s/%s DNS: %s Domain: %s\n",
+				config.ServerIP,
+				config.Gateway,
+				config.Subnet,
+				config.DNS,
+				config.DomainName,
+			)
+			s.Config = config
+		} else if r.URL.Path == "/leases" {
+			var lease DHCPLease
+			err := json.NewDecoder(r.Body).Decode(&lease)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			lease.Creation = time.Now()
+			log.WithFields(log.Fields{"module": moduleName}).Info("Adding Lease %v=%v Static: %v\n",
+				lease.IPAddr,
+				lease.MACAddr,
+				lease.Static,
+			)
+			s.Leases = append(s.Leases, lease)
 		}
-		log.WithFields(log.Fields{"module": moduleName}).Info("Serving from %s, Net: %s/%s DNS: %s Domain: %s\n",
-			config.ServerIP,
-			config.Gateway,
-			config.Subnet,
-			config.DNS,
-			config.DomainName,
-		)
-		s.Config = config
 	default:
 		fmt.Fprintf(w, "%v", s)
 

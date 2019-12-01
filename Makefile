@@ -3,11 +3,13 @@ all: dependencies metrics agent
 metrics:
 	mkdir -p bin
 	go vet cmd/wan-metrics/main.go
+	go fmt cmd/wan-metrics/main.go
 	go build -o bin/wan-metrics cmd/wan-metrics/main.go
 
 dhcp:
 	mkdir -p bin
 	go vet cmd/wan-dhcp/main.go
+	go fmt cmd/wan-dhcp/main.go
 	go build -o bin/wan-dhcp cmd/wan-dhcp/main.go
 
 agent:
@@ -23,6 +25,7 @@ agent:
 
 dependencies:
 	go get github.com/shirou/gopsutil
+	go get github.com/sirupsen/logrus
 	go get github.com/bennyscetbun/jsongo
 	go get github.com/ftrvxmtrx/fd
 	go get git.fd.io/govpp.git

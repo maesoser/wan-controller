@@ -3,12 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
+	dhcp "github.com/krolaw/dhcp4"
 	dhcpeng "github.com/maesoser/wan-controller/pkg/dhcpengine"
-        dhcp "github.com/krolaw/dhcp4"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
+	"net/http"
 	"os"
-        "net/http"
 )
 
 const (
@@ -23,7 +23,7 @@ func main() {
 	})
 
 	PidPath := flag.String("pid", "/etc/wan-data/wan-dhcp.pid", "PID File")
-        ListenAddr := flag.String("listen", "127.0.0.1:9610", "Server Addr")
+	ListenAddr := flag.String("listen", "127.0.0.1:9610", "Server Addr")
 	flag.Parse()
 
 	log.WithFields(log.Fields{"module": moduleName}).Info("Starting wan-dhcp")
@@ -34,12 +34,12 @@ func main() {
 	}
 
 	engine := dhcpeng.Server{}
-	go func(){
+	go func() {
 		log.WithFields(log.Fields{"module": moduleName}).Infof("DHCP Listening at 0.0.0.0:67")
 		err := dhcp.ListenAndServe(&engine)
-        	log.Panic(err)
+		log.Panic(err)
 	}()
 	log.WithFields(log.Fields{"module": moduleName}).Infof("API Listening at %s", *ListenAddr)
-        err = http.ListenAndServe(*ListenAddr, &engine)
+	err = http.ListenAndServe(*ListenAddr, &engine)
 	log.Panic(err)
 }
